@@ -1,0 +1,148 @@
+---
+title: "Electricity Sales Forecasting Report"
+author: "Tejas Bantupalli"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## Introduction
+
+This report presents a time series analysis and forecasting model for electricity sales in New England. The goal is to explore the main components of the time series (trend, seasonality) and build a forecasting model using the Prophet library.
+
+## Setup
+
+```{r setup, include=FALSE}
+# Load required libraries
+library(dplyr)
+library(ggplot2)
+library(prophet)
+library(zoo)
+```
+
+## Load data (replace with actual file path)
+
+```{r message = FALSE, error= FALSE}
+sales_data <- read.csv("electricity_retailSales_data_2010-23.csv")
+```
+
+## Preview the data
+
+```{r message = FALSE, error= FALSE}
+head(sales_data)
+```
+
+## Convert `period` to Date format and filter for New England
+
+```{r message = FALSE, error= FALSE}
+sales_data$period <- as.Date(paste0(sales_data$period, "-01"), format = "%Y-%m-%d")
+ne_sales_data <- sales_data %>%
+  filter(stateDescription == "New England") %>%
+  select(period, sales) %>%
+  rename(ds = period, y = sales) %>%
+  filter(!is.na(y))  # Remove rows with missing sales values
+```
+
+## View cleaned data
+```{r message = FALSE, error= FALSE}
+head(ne_sales_data)
+```
+
+## Plot Time Series
+
+```{r message = FALSE, error= FALSE}
+# Plot time series
+ggplot(ne_sales_data, aes(x = ds, y = y)) +
+  geom_line(color = "blue") +
+  labs(title = "Electricity Sales in New England Over Time", x = "Date", y = "Sales (million kWh)")
+```
+
+## Initial insights
+Looking at this time series of electricity sales in New England from around 2015 to 2020, here are several key insights. There are clear cyclic patterns in electricity consumption. Regular peaks appear to occur periodically, likely corresponding to seasonal demand. The highest spikes typically reach around 12,000-12,500 million kWh while the baseline usage rarely drops below 7,500 million kWh. The data also shows considerable short-term volatility. Sharp spikes and drops occur frequently, suggesting rapid changes in demand. This is consistent across the years shown.
+
+## Convert to time series for STL decomposition
+
+```{r message = FALSE, error= FALSE}
+ts_data <- ts(ne_sales_data$y, frequency = 12)
+decomposition <- stl(ts_data, s.window = "periodic")
+plot(decomposition)
+```
+
+## Initialize and fit Prophet model
+
+```{r message = FALSE, error= FALSE}
+model <- prophet(ne_sales_data)
+```
+
+## Create future dates for prediction (12 months ahead)
+
+```{r message = FALSE, error= FALSE}
+future <- make_future_dataframe(model, periods = 12, freq = "month")
+```
+
+## Forecast future sales
+
+```{r message = FALSE, error= FALSE}
+forecast <- predict(model, future)
+```
+
+## Plot the forecasted values
+
+```{r message = FALSE, error= FALSE}
+plot(model, forecast) +
+  labs(title = "Electricity Sales Forecast for New England")
+```
+
+## Plot forecast components
+
+```{r message = FALSE, error= FALSE}
+prophet_plot_components(model, forecast)
+```
+
+## Model Evaluation
+
+Calculate MAE and MAPE
+Calculate Mean Absolute Error (MAE) and Mean Absolute Percentage Error (MAPE) to evaluate the model's performance.
+
+## Calculate MAE and MAPE for evaluation
+
+```{r message = FALSE, error= FALSE}
+observed <- ne_sales_data$y[(nrow(ne_sales_data) - 11):nrow(ne_sales_data)]
+predicted <- forecast$yhat[(nrow(forecast) - 23):(nrow(forecast) - 12)]
+
+mae <- mean(abs(observed - predicted))
+mape <- mean(abs((observed - predicted) / observed)) * 100
+
+list(MAE = mae, MAPE = mape)
+```
+
+## Conclusion
+
+In this report, we conducted a time series analysis of electricity sales data in New England. We explored the data’s main components, built a forecasting model using Prophet, and evaluated the model’s accuracy. Our model demonstrates the ability to forecast future electricity sales based on historical patterns, providing insights that can support planning and decision-making.
+
+We can develop the following insights due to the model:
+
+Trend:
+
+1. There's a steady decline from ~4,100 units in 2010 to ~3,650 units by 2025 (projected)
+2. This suggests a long-term structural decrease in electricity consumption
+3. The decline appears fairly linear, indicating a consistent rate of reduction
+
+This could be due to factors like:
+1. Improved energy efficiency in buildings and appliances
+2. Adoption of LED lighting and other energy-saving technologies
+3. Possible demographic changes or shifts in industrial activity
+
+Seasonality:
+
+1. There is a larger peak around July/August (reaching ~750 units above trend) and smaller peak in January (~400        units above trend)
+   These likely correspond to:
+   Summer peak: Air conditioning demand during hot months
+   Winter peak: Heating and lighting during cold, dark months
+2. Deepest trough occurs around October/November (~-600 units), with another significant dip around april/may 
+   These represent "shoulder seasons" with mild temperatures requiring less heating or cooling
+3. We also find that the transitions between peaks and valleys aren't uniform
+   This suggests air conditioning might have a stronger impact on electricity demand than heating (possibly because     heating uses other fuel sources like natural gas or oil in New England)
+
+Forecast:
+
+The forecast tells us that the next year will also follow a similar trend to previous years, with the same seasonality as well. It remains stable with no dramatic increases or decreases. This is due to the time series itself being more stationary and predictable, with similar seasonalities each year and little to no change in overall trend.
