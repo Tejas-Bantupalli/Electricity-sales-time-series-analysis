@@ -98,22 +98,6 @@ plot(model, forecast) +
 prophet_plot_components(model, forecast)
 ```
 
-## Model Evaluation
-
-Calculate MAE and MAPE
-Calculate Mean Absolute Error (MAE) and Mean Absolute Percentage Error (MAPE) to evaluate the model's performance.
-
-## Calculate MAE and MAPE for evaluation
-
-```{r message = FALSE, error= FALSE}
-observed <- ne_sales_data$y[(nrow(ne_sales_data) - 11):nrow(ne_sales_data)]
-predicted <- forecast$yhat[(nrow(forecast) - 23):(nrow(forecast) - 12)]
-
-mae <- mean(abs(observed - predicted))
-mape <- mean(abs((observed - predicted) / observed)) * 100
-
-list(MAE = mae, MAPE = mape)
-```
 
 ## Conclusion
 
@@ -146,3 +130,4 @@ Seasonality:
 Forecast:
 
 The forecast tells us that the next year will also follow a similar trend to previous years, with the same seasonality as well. It remains stable with no dramatic increases or decreases. This is due to the time series itself being more stationary and predictable, with similar seasonalities each year and little to no change in overall trend.
+
